@@ -1,0 +1,44 @@
+version: "3.8"
+
+services:
+  showdown:
+    # Option A: Build your own Showdown image from the showdown/Dockerfile
+    build: ./showdown
+    # Option B: Use a pre-built Showdown image (simpler if one suits your needs)
+    # image: szymonwojdat/pokemon-showdown:latest # Example, check Docker Hub for others
+    # command: node pokemon-showdown start --no-security --port 8000 # If using a pre-built image that needs a command
+    container_name: ps-server
+    ports:
+      - "8000:8000" # Map host port to container port for UI access
+    restart: unless-stopped
+    volumes:
+      # Optional: Mount a custom config if not baking it into the image
+      # - ./showdown/config:/opt/pokemon-showdown/config
+      # Persist logs (optional)
+      - showdown_logs:/opt/pokemon-showdown/logs
+
+  poke-env-agent:
+    build: ./ppokemon
+    container_name: poke-env-agent
+    depends_on:
+      - showdown # Waits for the Showdown service to start (doesn't guarantee it's fully ready)
+    environment:
+      # If your script needs environment variables
+      - PYTHONUNBUFFERED=1
+    # If using GPU for the poke-env-agent (e.g., for TensorFlow/PyTorch training)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      # Mount your source code for easier development if you change it often
+      - ./ppokemon:/app
+      # Mount a directory for saving models, logs, etc.
+      # - ./training_output:/app/output
+    restart: on-failure # Or 'no' if it's a one-off script
+
+volumes:
+  showdown_logs:

@@ -1,0 +1,6 @@
+numpy
+torch
+gymnasium
+stable-baselines3[extra]
+gymnasium
+poke_env

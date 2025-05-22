@@ -6,9 +6,9 @@ import time
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_checker import check_env
 
-from poke_env.player import RandomPlayer
+from poke_env.player import RandomPlayer, SimpleHeuristicsPlayer
 from poke_env.ps_client.server_configuration import ServerConfiguration
-from ppokemon import MyRLEnv
+from ppokemon.ppokemon import MyRLEnv # Corrected import
 
 # --- Configuration ---
 SHOWDOWN_SERVER_CONFIGURATION = ServerConfiguration(
@@ -19,6 +19,7 @@ BATTLE_FORMAT = "gen9randombattle"
 LOG_LEVEL = logging.INFO
 MODEL_NAME = "ppo_pokemon_agent"
 TRAIN_TIMESTEPS = 100000
+EVALUATION_BATTLES = 10
 
 
 async def main():
@@ -62,10 +63,19 @@ async def main():
     model.save(MODEL_NAME)
     print(f"Model saved as {MODEL_NAME}.zip")
 
-    # Clean up the environment
-    # This will also stop the battles and disconnect the players.
+    # --- Evaluation Phase ---
+    await perform_evaluation(
+        loaded_model_path=MODEL_NAME,
+        train_env_for_loading=train_env, # Pass train_env for PPO.load context
+        battle_format=BATTLE_FORMAT,
+        server_configuration=SHOWDOWN_SERVER_CONFIGURATION,
+        log_level=LOG_LEVEL,
+        num_evaluation_battles=EVALUATION_BATTLES
+    )
+
+    # Clean up the training environment after evaluation is complete
     print("Closing training environment...")
-    train_env.close()  # Important!
+    train_env.close()
 
     end_time = time.time()
     print(f"Total script time: {end_time - start_time:.2f} seconds")
@@ -79,4 +89,10 @@ if __name__ == "__main__":
     # For PyTorch + SB3, you might want to control its specific loggers if too verbose
 
     # The main() function is now async due to PokeEnv
-    asyncio.run(main())  # Use asyncio.run for Python 3.7+
+    # asyncio.run(main()) # Use asyncio.run for Python 3.7+
+    # Running asyncio.run() multiple times or nested is problematic.
+    # The main() is already async, so direct call is fine if this script is run.
+    # If main() itself was not async, we'd need asyncio.run(main_async_wrapper())
+    # Given the structure, asyncio.run(main()) in if __name__ == "__main__" is correct.
+    asyncio.run(main())
+
